@@ -1,0 +1,36 @@
+{
+  "name": "a4g-backend",
+  "version": "1.0.0",
+  "description": "Alliance4Growth Forth Valley Backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/seed.js",
+    "init-db": "node src/utils/initDatabase.js",
+    "start:prod": "NODE_ENV=production node src/server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
+    "joi": "^17.9.2",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^6.9.3",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1",
+    "winston": "^3.9.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=22.12.0 <23",
+    "npm": ">=10"
+  }
+}

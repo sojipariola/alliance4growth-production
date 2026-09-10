@@ -1,0 +1,21 @@
+[Unit]
+Description=Alliance4Growth Node.js API
+After=network.target
+
+[Service]
+Type=simple
+User=alliance4growth
+Group=alliance4growth
+WorkingDirectory=/var/www/alliance4growth/backend
+EnvironmentFile=/etc/alliance4growth/alliance4growth.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/alliance4growth
+
+[Install]
+WantedBy=multi-user.target
