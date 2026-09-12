@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#2C5F2D"/>
+  <circle cx="960" cy="540" r="300" fill="rgba(255,255,255,0.1)"/>
+  <text x="960" y="500" font-family="Arial" font-size="72" fill="white" text-anchor="middle">A4G</text>
+  <text x="960" y="580" font-family="Arial" font-size="36" fill="#97BC62" text-anchor="middle">Clacks &amp; Forth Valley</text>
+</svg>

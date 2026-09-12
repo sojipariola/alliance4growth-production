@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -56,7 +57,21 @@ app.options('*', cors(corsOptions));
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+  hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+  contentSecurityPolicy: isProduction ? {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'"],
+      "style-src": ["'self'", "'unsafe-inline'"],
+      "img-src": ["'self'", "data:", "blob:"],
+      "font-src": ["'self'", "data:"],
+      "connect-src": ["'self'"],
+      "object-src": ["'none'"],
+      "base-uri": ["'self'"],
+      "frame-ancestors": ["'none'"]
+    }
+  } : false
 }));
 
 app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
@@ -93,9 +108,36 @@ app.get('/health', async (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.get('/', (req, res) => {
-  res.json({ name: 'A4G Forth Valley API', status: 'online' });
-});
+// ---------------------------------------------------------------------------
+// Frontend static serving
+// The Vite build output is copied into backend/public/ at deploy time.
+// If that directory is missing, the API-only root response is preserved.
+// ---------------------------------------------------------------------------
+const publicDir = path.resolve(__dirname, '..', 'public');
+const publicIndex = path.join(publicDir, 'index.html');
+const hasFrontend = fs.existsSync(publicIndex);
+
+if (hasFrontend) {
+  // Serve static assets (CSS, JS, images, favicon, etc.)
+  app.use(express.static(publicDir, { dotfiles: 'deny', index: false }));
+
+  // SPA fallback — any non-API, non-uploads, non-health GET returns index.html
+  // so client-side routing works on hard refresh / deep links.
+  app.get(/^\/(?!api\/|uploads\/|health$).*/, (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    res.sendFile(publicIndex, err => {
+      if (err) next(err);
+    });
+  });
+
+  console.log('✅ Frontend detected at', publicDir);
+} else {
+  // No frontend build present — keep the API-only root response.
+  app.get('/', (req, res) => {
+    res.json({ name: 'A4G Forth Valley API', status: 'online' });
+  });
+  console.log('ℹ️  No frontend build found at', publicDir, '— serving API only');
+}
 
 app.use(errorHandler);
 
