@@ -245,12 +245,27 @@ async function createTables() {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS hero_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL,
+      title TEXT,
+      subtitle TEXT,
+      order_index INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_users_approved ON users(is_approved);
     CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
     CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
     CREATE INDEX IF NOT EXISTS idx_events_is_past ON events(is_past);
     CREATE INDEX IF NOT EXISTS idx_registrations_user_event ON event_registrations(user_id, event_id);
+    CREATE INDEX IF NOT EXISTS idx_hero_images_active ON hero_images(is_active);
+    CREATE INDEX IF NOT EXISTS idx_hero_images_order ON hero_images(order_index);
   `);
 
   console.log('✅ Database tables created/verified');
