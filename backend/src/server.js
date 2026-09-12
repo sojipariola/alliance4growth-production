@@ -29,21 +29,49 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   console.warn('⚠️ JWT_SECRET is not configured with a strong value; configure it before production.');
 }
 
+// ---------------------------------------------------------------------------
+// CORS configuration
+// Accepts a comma-separated list in FRONTEND_URL.
+// Also automatically allows same-origin requests (no Origin header), and, in
+// production, the canonical apex + www domains even if not explicitly listed.
+// ---------------------------------------------------------------------------
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-if (isProduction && !process.env.FRONTEND_URL) throw new Error('FRONTEND_URL must be set in production.');
-const allowedOrigins = frontendUrl.split(',').map(value => value.trim()).filter(Boolean);
+if (isProduction && !process.env.FRONTEND_URL) {
+  throw new Error('FRONTEND_URL must be set in production.');
+}
+
+const allowedOrigins = frontendUrl
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
+
+const productionHostPattern = /^https?:\/\/(www\.)?alliance4growth\.org(:\d+)?$/;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // same-origin / non-browser clients
+  if (allowedOrigins.includes(origin)) return true;
+  if (isProduction && productionHostPattern.test(origin)) return true;
+  // Always allow localhost/127.0.0.1 for local dev convenience.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  return false;
+}
 
 if (process.env.TRUST_PROXY) {
-  app.set('trust proxy', Number.isNaN(Number(process.env.TRUST_PROXY)) ? process.env.TRUST_PROXY : Number(process.env.TRUST_PROXY));
+  app.set(
+    'trust proxy',
+    Number.isNaN(Number(process.env.TRUST_PROXY))
+      ? process.env.TRUST_PROXY
+      : Number(process.env.TRUST_PROXY)
+  );
 }
 
 app.disable('x-powered-by');
 
 const corsOptions = {
   origin(origin, callback) {
-    // Allow non-browser/server-to-server requests without an Origin header.
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Origin not allowed by CORS'));
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    console.warn(`⚠️  CORS blocked origin: ${origin}`);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -86,15 +114,32 @@ app.use('/api/registrations', adminLimiter);
 app.use('/api/donations', donationLimiter);
 app.use('/api/bank-transfer', donationLimiter);
 
-const uploadDirectory = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'));
+// ---------------------------------------------------------------------------
+// Uploaded files
+// ---------------------------------------------------------------------------
+const uploadDirectory = path.resolve(
+  process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads')
+);
+
 app.use('/uploads', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', frontendUrl.split(',')[0].trim());
+  // Reflect the request origin if allowed, otherwise fall back to the first
+  // configured frontend URL. Reflects correctly for same-origin requests too.
+  const requestOrigin = req.headers.origin;
+  const allowOrigin = requestOrigin && isAllowedOrigin(requestOrigin)
+    ? requestOrigin
+    : allowedOrigins[0] || '*';
+
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
 }, express.static(uploadDirectory, { dotfiles: 'deny', fallthrough: false }));
 
+// ---------------------------------------------------------------------------
+// API routes
+// ---------------------------------------------------------------------------
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/admin', adminRoutes);
@@ -143,8 +188,13 @@ app.use(errorHandler);
 
 async function start() {
   await initializeDatabase();
+
   const server = app.listen(PORT, '127.0.0.1', () => {
     console.log(`🚀 Alliance4Growth API listening on 127.0.0.1:${PORT} (${NODE_ENV})`);
+    console.log(`🌐 CORS allowed origins: ${allowedOrigins.join(', ') || '(none — same-origin only)'}`);
+    if (isProduction) {
+      console.log(`🌐 CORS also allowing: https://alliance4growth.org, https://www.alliance4growth.org`);
+    }
   });
 
   const shutdown = signal => {
